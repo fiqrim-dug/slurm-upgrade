@@ -1,0 +1,21 @@
+---
+all:
+  children:
+    lslurmdb:
+      hosts:
+        kud74:
+    lslurmcontroller:
+      hosts:
+        kud72:
+    lslurmclient:
+      hosts:
+        kud64:
+
+  vars:
+    ansible_user: adm_fiqrim
+    ansible_ssh_private_key_file: ~/.ssh/id_rsa_adm
+
+    # Default Slurm variables
+    # slurm_version: "20.11.8"
+    # slurm_install_dir: "/opt/slurm/{{ slurm_version }}"
+    # slurm_conf_dir: "/etc/slurm"

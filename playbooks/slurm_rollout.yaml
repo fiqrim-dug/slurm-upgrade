@@ -1,0 +1,220 @@
+---
+- name: Update SlurmDB, Controller, and Client
+  hosts: lslurmdb, lslurmcontroller, lslurmclient
+  # hosts: lslurmdb
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    get_url_args:
+      dest: "/localData/slurm_testUpgrade"
+    asset_name: "el7.tar.bz2"
+    github_pat: "{{ lookup('file', '~/.ssh/github_token.txt') }}"
+    sql_key: "{{ lookup('file', '~/.ssh/sql_token.txt') }}"
+    backup_dir: "{{ get_url_args.dest }}/backup_b4_move_lslurmdb_{{ lookup('pipe', 'date +%Y%m%d') }}"
+    gh_release_api: "https://api.github.com/repos/dugeo/slurm/releases/latest"
+
+  tasks:
+
+
+    - name: Ensure the backup directory exists
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        mode: '0755'
+        state: directory
+      # when: inventory_hostname in groups['lslurmdb']
+
+    - name: Ensure the backup directory exists
+      ansible.builtin.file:
+        path: "{{ get_url_args.dest }}/backup_var_spool_slurm_{{ lookup('pipe', 'date +%Y%m%d') }}"
+        mode: '0755'
+        state: directory
+      when: inventory_hostname in groups['lslurmcontroller'] 
+
+
+
+    - name: Run the sanity_slurm_conf.sh script with sudo and DEBUG=1
+      ansible.builtin.shell: DEBUG=1 /d/sw/slurm/etc/sanity_slurm_conf.sh
+      args:
+        chdir: "{{ get_url_args.dest }}"
+      become: yes
+      register:  sanity_slurm
+      become_method: sudo
+      environment:
+        DEBUG: "1"
+      when: inventory_hostname in groups['lslurmcontroller']
+
+
+    - name: Extract final config file line
+      set_fact:
+        final_config_line: "{{ sanity_slurm.stdout_lines | regex_search('(/localData/slurm_testUpgrade/slurm_kl\\.conf\\.[0-9]{14}\\.\\d+\\.root)') }}"
+      when: inventory_hostname in groups['lslurmcontroller']
+
+
+    - name: Compare two files after removing headers, Read content of file 1, skipping header
+      shell: tail -n +3 /localData/slurm_kl.conf > /tmp/file1_no_header.txt
+      # shell: tail -n +3 /localData/kdat0011_cpuload_20230816.log > /tmp/file1_no_header.txt #test differ
+      register: file1_content
+      when: inventory_hostname in groups['lslurmcontroller']
+
+
+    - name: Read content of file 2, skipping header
+      shell: tail -n +3 {{ final_config_line }} > /tmp/file2_no_header.txt
+      register: file2_content
+      when: inventory_hostname in groups['lslurmcontroller']
+
+
+    - name: Compare the contents
+      shell: diff -q /tmp/file1_no_header.txt  /tmp/file2_no_header.txt
+      register: diff_result
+      changed_when: false
+      failed_when: diff_result.rc != 0 
+      when: inventory_hostname in groups['lslurmcontroller']
+
+    - name: Remove temporary files
+      file:
+        path: /tmp/file1_no_header.txt
+        state: absent
+
+    - name: Remove temporary files
+      file:
+        path: /tmp/file2_no_header.txt
+        state: absent
+
+    - name: Obtain GitHub release details
+      ansible.builtin.uri:
+        url: "{{ gh_release_api }}"
+        return_content: true
+        use_netrc: "{{ github_pat | default(false) is falsy }}"
+        headers:
+          accept: "application/vnd.github.v3.raw"
+          authorization: "{{ 'token ' + github_pat if github_pat | default('') else None }}"
+      register: gh_release
+
+
+    - name: Set GitHub release asset URL and directory name
+      ansible.builtin.set_fact:
+        gh_release_asset_url: "{{ gh_release.json.assets | selectattr('name', 'contains', asset_name) | map(attribute='url') | first }}"
+        asset_dir_name: "{{ gh_release.json.assets | selectattr('name', 'contains', asset_name) | map(attribute='name') | first | regex_replace('.tar.bz2', '') }}"
+
+    - name: Download release from GitHub
+      ansible.builtin.get_url:
+        url: "{{ gh_release_asset_url }}"
+        dest: "{{ get_url_args.dest }}/{{ asset_dir_name }}"
+        mode: "0755"
+        use_netrc: "{{ github_pat | default(false) is falsy }}"
+        headers:
+          accept: "application/octet-stream"
+          authorization: "{{ 'token ' + github_pat if github_pat | default('') else None }}"
+      register: download_dest
+
+    - name: Unarchive the .bz2 file "{{ asset_dir_name }}"
+      ansible.builtin.unarchive:
+        src: "{{ download_dest.dest }}"
+        dest: "{{ get_url_args.dest }}"
+        remote_src: yes
+
+
+    # Stopping the slurmdbd services
+    - name: Stop slurmdbd service
+      ansible.builtin.systemd:
+        name: fastx3
+        state: stopped
+      register: slurmdbd_status
+      failed_when: "'restarted' in slurmdbd_status.state"
+      # failed_when: slurmdbd_status is active
+      when: inventory_hostname in groups['lslurmdb']
+
+
+    - name: Print returned json dictionary
+      debug:
+        # var: final_config_line
+        var: slurmdbd_status
+
+    # Stopping the slurmctld services
+    - name: Stop slurmctld service
+      ansible.builtin.systemd:
+        name: fastx3
+        state: stopped
+      register: slurmctld_status
+      failed_when: "'restarted' in slurmctld_status.state"
+      when: inventory_hostname in groups['lslurmcontroller']
+
+    # Stopping the slurmd services
+    - name: Stop slurmd service
+      ansible.builtin.systemd:
+        name: fastx3
+        state: stopped
+      register: slurmd_status
+      failed_when: "'restarted' in slurmd_status.state"
+      when: inventory_hostname in groups['lslurmclient']
+
+
+    # - name: Run mysqldump command on lslurmdb
+    #   ansible.builtin.shell: "mysqldump -u root -p {{ sql_key }} slurm_acct_db > {{ backup_dir }}/slurm_acct_db.sql"
+    #   ansible.builtin.shell: "mysqldump -u root slurm_acct_db > {{ backup_dir }}/slurm_acct_db.sql"
+      # when: inventory_hostname in groups['lslurmdb']
+
+
+    - name: Backup the config on lslurmcontroller
+      ansible.builtin.copy:
+        src: "/d/admin/results.txt"
+        dest: "{{ get_url_args.dest }}/backup_var_spool_slurm_{{ lookup('pipe', 'date +%Y%m%d') }}"
+      when: inventory_hostname in groups['lslurmcontroller']
+
+    - name: Create relative symlinks for slurm
+      ansible.builtin.file:
+        src: "../etc" #remove on prod
+        dest: "{{ get_url_args.dest }}/d/sw/slurm/{{ asset_dir_name }}/etc"
+        state: link
+        force: yes
+
+    - name: Create relative symlink latest
+      ansible.builtin.file:
+        src: "{{ asset_dir_name }}"
+        dest: "{{ get_url_args.dest }}/d/sw/slurm/latest"
+        state: link
+
+    - name: Create relative symlink slurmdb
+      ansible.builtin.file:
+        src: "{{ asset_dir_name }}"
+        dest: "{{ get_url_args.dest }}/d/sw/slurm/slurmdb"
+        state: link
+      when: inventory_hostname in groups['lslurmdb'] or inventory_hostname in groups['lslurmclient']
+
+    - name: Create relative symlink slurmctl
+      ansible.builtin.file:
+        src: "{{ asset_dir_name }}"
+        dest: "{{ get_url_args.dest }}/d/sw/slurm/slurmctl"
+        state: link
+      when: inventory_hostname in groups['lslurmdb'] or inventory_hostname in groups['lslurmclient']
+
+
+
+    - name: Restart slurmdb service
+      ansible.builtin.systemd:
+        name: fastx3
+        state: restarted
+      register: slurmdbd_status
+      failed_when: "'stopped' in slurmdbd_status.state"
+      when: inventory_hostname in groups['lslurmdb']
+
+
+
+    - name: Restart slurmctld service
+      ansible.builtin.systemd:
+        name: fastx3
+        state: restarted
+      register: slurmctld_status
+      failed_when: "'stopped' in slurmctld_status.state"
+      when: inventory_hostname in groups['lslurmcontroller']
+
+
+
+    - name: Restart slurmd service
+      ansible.builtin.systemd:
+        name: fastx3
+        state: restarted
+      register: slurmd_status
+      failed_when: "'stopped' in slurmd_status.state"
+      when: inventory_hostname in groups['lslurmclient']
