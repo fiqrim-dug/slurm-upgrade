@@ -100,7 +100,7 @@
     - name: Download release from GitHub
       ansible.builtin.get_url:
         url: "{{ gh_release_asset_url }}"
-        dest: "{{ get_url_args.dest }}/{{ asset_dir_name }}"
+        dest: "{{ get_url_args.dest }}/{{ asset_dir_name }}.tar.bz2"
         mode: "0755"
         use_netrc: "{{ github_pat | default(false) is falsy }}"
         headers:
@@ -110,15 +110,24 @@
 
     - name: Unarchive the .bz2 file "{{ asset_dir_name }}"
       ansible.builtin.unarchive:
-        src: "{{ download_dest.dest }}"
+        src: "{{ download_dest.dest }}.tar.bz2"
         dest: "{{ get_url_args.dest }}"
         remote_src: yes
+
+    - name: Copy extracted build
+      ansible.builtin.copy:
+        src: "{{ get_url_args.dest }}/d/sw/slurm/{{ asset_dir_name }}"
+        dest: "{{ get_url_args.dest }}"
+        remote_src: yes
+        # state: link
+        # force: yes # allows the task to overwrite the destination file if it exists.
 
 
     # Stopping the slurmdbd services
     - name: Stop slurmdbd service
       ansible.builtin.systemd:
-        name: fastx3
+        name: fastx3 # remove on prod
+        # name: slurmdbd
         state: stopped
       register: slurmdbd_status
       failed_when: "'restarted' in slurmdbd_status.state"
@@ -128,7 +137,8 @@
     # Stopping the slurmctld services
     - name: Stop slurmctld service
       ansible.builtin.systemd:
-        name: fastx3
+        name: fastx3 # remove on prod
+        # name: slurmctld
         state: stopped
       register: slurmctld_status
       failed_when: "'restarted' in slurmctld_status.state"
@@ -137,7 +147,8 @@
     # Stopping the slurmd services
     - name: Stop slurmd service
       ansible.builtin.systemd:
-        name: fastx3
+        name: fastx3 # remove on prod
+        # name: slurmd
         state: stopped
       register: slurmd_status
       failed_when: "'restarted' in slurmd_status.state"
@@ -152,34 +163,36 @@
 
     - name: Backup the config on lslurmcontroller
       ansible.builtin.copy:
-        src: "/d/admin/results.txt"
+        src: "/d/admin/results.txt" #dummy test
+        # src: "/var/spool/slurm"
         dest: "{{ get_url_args.dest }}/backup_var_spool_slurm_{{ lookup('pipe', 'date +%Y%m%d') }}"
+        remote_src: yes
       when: inventory_hostname in groups['lslurmcontroller']
 
     - name: Create relative symlinks etc
       ansible.builtin.file:
         src: "../etc" 
-        dest: "{{ get_url_args.dest }}/d/sw/slurm/{{ asset_dir_name }}/etc"
+        dest: "{{ get_url_args.dest }}/{{ asset_dir_name }}/etc"
         state: link
         force: yes #remove on prod
 
     - name: Create relative symlink latest
       ansible.builtin.file:
         src: "{{ asset_dir_name }}"
-        dest: "{{ get_url_args.dest }}/d/sw/slurm/latest"
+        dest: "{{ get_url_args.dest }}/latest"
         state: link
 
     - name: Create relative symlink slurmdb
       ansible.builtin.file:
         src: "{{ asset_dir_name }}"
-        dest: "{{ get_url_args.dest }}/d/sw/slurm/slurmdb"
+        dest: "{{ get_url_args.dest }}/slurmdb"
         state: link
       when: inventory_hostname in groups['lslurmdb'] or inventory_hostname in groups['lslurmclient']
 
     - name: Create relative symlink slurmctl
       ansible.builtin.file:
         src: "{{ asset_dir_name }}"
-        dest: "{{ get_url_args.dest }}/d/sw/slurm/slurmctl"
+        dest: "{{ get_url_args.dest }}/slurmctl"
         state: link
       when: inventory_hostname in groups['lslurmdb'] or inventory_hostname in groups['lslurmclient']
 
@@ -187,7 +200,8 @@
 
     - name: Restart slurmdb service
       ansible.builtin.systemd:
-        name: fastx3
+        name: fastx3 # remove on prod
+        # name: slurmdb
         state: restarted
       register: slurmdbd_status
       failed_when: "'stopped' in slurmdbd_status.state"
@@ -197,7 +211,8 @@
 
     - name: Restart slurmctld service
       ansible.builtin.systemd:
-        name: fastx3
+        name: fastx3 # remove on prod
+        # name: slurmctld
         state: restarted
       register: slurmctld_status
       failed_when: "'stopped' in slurmctld_status.state"
@@ -207,7 +222,8 @@
 
     - name: Restart slurmd service
       ansible.builtin.systemd:
-        name: fastx3
+        name: fastx3 # remove on prod
+        # name: slurmd
         state: restarted
       register: slurmd_status
       failed_when: "'stopped' in slurmd_status.state"
