@@ -156,12 +156,12 @@
         dest: "{{ get_url_args.dest }}/backup_var_spool_slurm_{{ lookup('pipe', 'date +%Y%m%d') }}"
       when: inventory_hostname in groups['lslurmcontroller']
 
-    - name: Create relative symlinks for slurm
+    - name: Create relative symlinks etc
       ansible.builtin.file:
-        src: "../etc" #remove on prod
+        src: "../etc" 
         dest: "{{ get_url_args.dest }}/d/sw/slurm/{{ asset_dir_name }}/etc"
         state: link
-        force: yes
+        force: yes #remove on prod
 
     - name: Create relative symlink latest
       ansible.builtin.file:
