@@ -110,7 +110,7 @@
 
     - name: Unarchive the .bz2 file "{{ asset_dir_name }}"
       ansible.builtin.unarchive:
-        src: "{{ download_dest.dest }}.tar.bz2"
+        src: "{{ download_dest.dest }}"
         dest: "{{ get_url_args.dest }}"
         remote_src: yes
 
