@@ -125,12 +125,6 @@
       # failed_when: slurmdbd_status is active
       when: inventory_hostname in groups['lslurmdb']
 
-
-    - name: Print returned json dictionary
-      debug:
-        # var: final_config_line
-        var: slurmdbd_status
-
     # Stopping the slurmctld services
     - name: Stop slurmctld service
       ansible.builtin.systemd:
