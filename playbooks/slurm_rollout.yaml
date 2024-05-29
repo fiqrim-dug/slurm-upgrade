@@ -3,7 +3,7 @@
   hosts: lslurmdb, lslurmcontroller, lslurmclient
   # hosts: lslurmdb
   become: true
-  gather_facts: false
+  gather_facts: false #true on prod
   any_errors_fatal: true
   vars:
     get_url_args:
