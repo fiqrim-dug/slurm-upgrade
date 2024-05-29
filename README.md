@@ -117,7 +117,8 @@ This Ansible playbook automates the process of updating SlurmDB, Controller, and
 - Adjust file paths and variables according to your specific setup.
 
 ## 👉 Pending
-- [ ] to move into /d/sw/slurm from its localData
-- [ ] update services to  relevant services
+- [x] to move into /d/sw/slurm from its localData
+- [x] update services to  relevant services
 - [ ] update `host.yaml` to  relevant host
 - [ ] test the key for dumping sql database into backup dir
+- [ ] sanity check the size of dumped sql database
