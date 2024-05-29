@@ -2,14 +2,14 @@
 
 This Ansible playbook automates the process of updating SlurmDB, Controller, and Client nodes. The playbook performs tasks such as creating backup directories, verifying configurations, downloading and extracting new releases from GitHub, and restarting Slurm services.
 
-## Requirements
+## ✨ Requirements
 
 - Ansible installed on the control machine.
 - SSH access to the Slurm nodes (SlurmDB, Controller, and Client).
 - GitHub personal access token for downloading releases.
 - SQL key for database access.
 
-## Variables
+## ❔ Variables
 
 - `get_url_args`: Dictionary containing the destination path for downloaded files.
 - `asset_name`: The name of the GitHub release asset.
@@ -18,13 +18,13 @@ This Ansible playbook automates the process of updating SlurmDB, Controller, and
 - `backup_dir`: Directory path for backups.
 - `gh_release_api`: GitHub API URL for the latest release.
 
-## Hosts
+## 💻 Hosts
 
 - `lslurmdb`: Hosts related to SlurmDB.
 - `lslurmcontroller`: Hosts related to the Slurm Controller.
 - `lslurmclient`: Hosts related to the Slurm Client.
 
-## Tasks
+## 🚀 Tasks
 
 1. **Ensure the backup directory exists**
    - Creates backup directories on the SlurmDB and SlurmController nodes.
@@ -93,7 +93,7 @@ This Ansible playbook automates the process of updating SlurmDB, Controller, and
 ```yaml
       failed_when: "'stopped' in slurmdbd_status.state"
 ```
-## Usage
+## 📣 Usage
 
 1. **Prepare the environment**
    - Ensure you have the required access tokens and keys in `~/.ssh/github_token.txt` and `~/.ssh/sql_token.txt`.
@@ -110,13 +110,14 @@ This Ansible playbook automates the process of updating SlurmDB, Controller, and
     ansible-playbook -i inventory/hosts.yaml playbooks/slurm_rollout.yaml -vv
    ```
 
-## Notes
+## 📜 Notes
 
-- This is being done in the tested environment. Please change the FastX3 services to the relevant services, and ensure the paths are correct as per the configuration.
-- Ensure that the `fastx3` service name is correct for your environment. Adjust it if necessary.
+- This is being done in the tested environment. Please change the `FastX3` services to the relevant services, and ensure the paths are correct as per the configuration.
 - The playbook assumes that the GitHub token and SQL key files are stored in the `~/.ssh` directory.
 - Adjust file paths and variables according to your specific setup.
 
-## Pending
+## 👉 Pending
 - [ ] to move into /d/sw/slurm from its localData
-- [ ] dumping sql database into backup dir
+- [ ] update services to  relevant services
+- [ ] update `host.yaml` to  relevant host
+- [ ] test the key for dumping sql database into backup dir
