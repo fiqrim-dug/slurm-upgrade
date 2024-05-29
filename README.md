@@ -1,7 +1,3 @@
-# slurm-upgrade
-slurm minor upgrade  via ansible
-
-
 # Update SlurmDB, Controller, and Client
 
 This Ansible playbook automates the process of updating SlurmDB, Controller, and Client nodes. The playbook performs tasks such as creating backup directories, verifying configurations, downloading and extracting new releases from GitHub, and restarting Slurm services.
