@@ -1,2 +1,7 @@
 # slurm-upgrade
-minor upgrade slurm via ansible
+slurm minor upgrade  via ansible
+
+### For debug
+```sh
+ansible-playbook -i inventory/hosts.yaml playbooks/slurm_rollout.yaml -vv
+```
