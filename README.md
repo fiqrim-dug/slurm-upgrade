@@ -1,6 +1,6 @@
 # Update SlurmDB, Controller, and Client
 
-This Ansible playbook automates the process of updating SlurmDB, Controller, and Client nodes. The playbook performs tasks such as creating backup directories, verifying configurations, downloading and extracting new releases from GitHub, and restarting Slurm services.
+This Ansible playbook automates the process of updating SlurmDB, Controller, and Client nodes. The playbook performs tasks such as creating backup directories, verifying configurations, downloading and extracting new releases from GitHub, and restarting Slurm services. https://confluence.dug.com/pages/viewpage.action?spaceKey=DUGIT&title=20240122+Update+London%27s+SLURM+to+slurm-23-02-7-1-DUG-5
 
 ## ✨ Requirements
 
